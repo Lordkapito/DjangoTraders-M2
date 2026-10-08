@@ -1,0 +1,107 @@
+<!--
+    Hand-rolled plain-form edit page for an existing product
+    (djtraders/views.py's product_edit_form). Mirrors
+    customer_edit_form.html: every field is a plain <input>/<select>
+    read back by name in the view, no Django Form class involved.
+    Only product_name is validated, by hand, with one generic error
+    banner -- same as customer_edit_form's own company_name check.
+
+    "suppliers"/"categories" are querysets passed in by the view, used
+    to build the Supplier/Category <select> dropdowns by hand -- a
+    plain <select>, unlike crispy's auto-generated one in product_edit.html,
+    needs its <option> list built explicitly in the template.
+-->
+{% extends "common/base.html" %}
+
+{% block title %}Edit {{ product.product_name }}{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card mt-4 border-0 shadow-sm">
+                <div class="card-header fw-bolder h4">
+                    <i class="fa-solid fa-pen-to-square dt-icon-supplier"></i>
+                    Edit {{ product.product_name }} (plain form)
+                </div>
+                <div class="card-body">
+                    {% if error %}
+                        <div class="alert alert-danger py-2">{{ error }}</div>
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="product-name-input" class="form-label">Product Name</label>
+                                <input type="text" name="product_name" id="product-name-input"
+                                       class="form-control" value="{{ product.product_name }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="quantity-per-unit-input" class="form-label">Quantity Per Unit</label>
+                                <input type="text" name="quantity_per_unit" id="quantity-per-unit-input"
+                                       class="form-control" value="{{ product.quantity_per_unit }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="supplier-select" class="form-label">Supplier</label>
+                                <select name="supplier" id="supplier-select" class="form-select">
+                                    <option value="">Select a supplier...</option>
+                                    {% for supplier in suppliers %}
+                                        <option value="{{ supplier.supplier_id }}"
+                                                {% if product.supplier_id == supplier.supplier_id %}selected{% endif %}>
+                                            {{ supplier.company_name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="category-select" class="form-label">Category</label>
+                                <select name="category" id="category-select" class="form-select">
+                                    <option value="">Select a category...</option>
+                                    {% for category in categories %}
+                                        <option value="{{ category.category_id }}"
+                                                {% if product.category_id == category.category_id %}selected{% endif %}>
+                                            {{ category.category_name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="unit-price-input" class="form-label">Unit Price</label>
+                                <input type="number" step="0.01" min="0" name="unit_price" id="unit-price-input"
+                                       class="form-control" value="{{ product.unit_price|default:'' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="units-in-stock-input" class="form-label">Units In Stock</label>
+                                <input type="number" name="units_in_stock" id="units-in-stock-input"
+                                       class="form-control" value="{{ product.units_in_stock|default:'' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="units-on-order-input" class="form-label">Units On Order</label>
+                                <input type="number" name="units_on_order" id="units-on-order-input"
+                                       class="form-control" value="{{ product.units_on_order|default:'' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="reorder-level-input" class="form-label">Reorder Level</label>
+                                <input type="number" name="reorder_level" id="reorder-level-input"
+                                       class="form-control" value="{{ product.reorder_level|default:'' }}">
+                            </div>
+                        </div>
+
+                        <div class="d-flex mt-4 justify-content-end">
+                            <button type="submit" class="btn dt-btn-primary-supplier w3-hover-shadow" title="Save changes">
+                                <i class="fa-solid fa-floppy-disk me-1 dt-icon-success"></i>
+                                Save
+                            </button>
+                            <div class="dt-link-wrap btn dt-btn-secondary-supplier w3-hover-shadow">
+                                <a href="{% url 'djtraders:product_detail' product.product_id %}" title="Cancel and discard changes">
+                                    <i class="fa-solid fa-xmark me-1 dt-icon-danger"></i>
+                                    Cancel
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

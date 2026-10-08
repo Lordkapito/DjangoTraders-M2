@@ -1,0 +1,283 @@
+<!--
+    Template for the order_build view (djtraders/views.py) -- the shopping
+    cart page. There is no Order row and no order_id at all until commit --
+    everything here comes from request.session["cart"] (a plain
+    product_id/quantity/discount dict, turned into display-ready lines by
+    _cart_lines, djtraders/views.py) and a fresh Customer/Product lookup,
+    not a database Order. Context here is customer/cart_lines/cart_total/
+    detail_form/categories/commit_form/ship_to_form/stock_errors.
+
+    The header's cart icon badge shows cart_lines|length -- the number of
+    distinct products currently in the cart, not total quantity across
+    all lines. Purely a display convenience; the real total is the
+    Order Total row in the table footer below.
+
+    Cart Items render in a plain table (_order_line_row.html, one row per
+    line), not a DataTable -- rows are appended/replaced/removed by JS as
+    products are added or removed, which DataTables doesn't handle well
+    once it has already initialized a table's markup. Adding a product is
+    AJAX-driven (AddOrderLineItem, DjangoTraders.js), POSTing to
+    order_add_line; removing a line is also AJAX-driven
+    (RemoveOrderLineItem), POSTing to order_remove_line, via each row's
+    own Remove button in its last column. #order-lines-table's own
+    data-remove-url attribute carries that endpoint's URL for the JS to
+    read, the same way the Add to Cart <form>'s action= attribute does
+    for AddOrderLineItem.
+
+    Clear Cart (the Cart Items card header) is a plain POST, not AJAX --
+    it empties the whole cart at once (order_clear, djtraders/views.py)
+    and reloads this same page. Only shown when the cart actually has
+    lines.
+
+    The Add to Cart row includes a Category filter (narrows the Product
+    dropdown client-side only, via FilterProductOptions reading each
+    option's data-category-id -- see ProductSelectWidget, djtraders/
+    forms.py) and a Discount % field (detail_form.discount_percent) --
+    up to 10% is accepted for an ordinary customer session, more for an
+    employee session (allow_high_discount, order_add_line); server-side
+    clean_discount_percent is the real gate either way. Stock is checked
+    both client-side (data-stock on each option, AddOrderLineItem) and
+    server-side (OrderDetailForm.clean(), order_commit's own re-check at
+    commit time -- stock_errors shows the latter when it fires).
+
+    ShipToForm (next to the commit fields) replaces what used to be a
+    read-only display of the customer's on-file address -- pre-filled
+    from it, but a real, independently validated, editable form; its
+    cleaned values are what order_commit actually writes onto the
+    Order's ship_* columns, not the customer's raw address.
+
+    current_employee building this cart on another customer's behalf
+    (enhancement 7, _cart_access_denied, djtraders/views.py) sees a
+    banner naming whose order this is, so the distinction is never
+    ambiguous from the page alone.
+-->
+{% extends "common/base.html" %}
+{% load humanize %}
+
+{% block title %}Cart -- {{ customer.company_name }}{% endblock %}
+
+{% block content %}
+    <div class="navbar dt-navbar dt-navbar-accent border-bottom border-3 shadow rounded-3 my-3 px-4 py-2">
+        <div class="d-flex align-items-center">
+            <h1 class="h4 mb-0 d-flex align-items-center gap-2">
+                
+                 {{ customer.company_name }}
+            </h1>
+        </div>
+        <div class="dt-link-wrap btn dt-btn-secondary-customer w3-hover-shadow">
+            <a href="{% url 'djtraders:customer_detail' customer.customer_id %}" title="Back to Customer">
+                <i class="fa-solid fa-arrow-left me-1"></i>
+                Back to Customer
+            </a>
+        </div>
+    </div>
+
+    {% if current_employee %}
+        <div class="alert alert-info py-2 mb-3 d-flex align-items-center gap-2">
+            <i class="fa-solid fa-user-tie"></i>
+            You're building this order on behalf of <strong>{{ customer.company_name }}</strong>.
+        </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-3 border-0 shadow-sm">
+                <div class="card-header fw-bolder h4 d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="fa-solid fa-boxes-stacked me-1"></i>
+                        Cart Items
+                        {% if cart_lines %}
+                            <span class="badge dt-cart-count-badge ms-1">{{ cart_lines|length }}</span>
+                        {% endif %}
+                    </span>
+                    {% if cart_lines %}
+                        <form method="post" action="{% url 'djtraders:order_clear' customer.customer_id %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Clear cart">
+                                <i class="fa-solid fa-trash-can me-1"></i>
+                                Clear Cart
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+                <table id="order-lines-table"
+                       class="table mb-0 align-middle"
+                       data-remove-url="{% url 'djtraders:order_remove_line' customer.customer_id %}">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th class="text-end">Unit Price</th>
+                            <th class="text-end">Quantity</th>
+                            <th class="text-end">Discount</th>
+                            <th class="text-end">Line Total</th>
+                            <th class="text-center">Remove</th>
+                        </tr>
+                    </thead>
+                    <tbody id="order-lines-body">
+                        {% for line in cart_lines %}
+                            {% include "djtraders/_order_line_row.html" %}
+                        {% empty %}
+                            <tr id="order-lines-empty-row">
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    <i class="fa-solid fa-cart-shopping fa-lg mb-2 d-block"></i>
+                                    Your cart is empty -- add a product below.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="5" class="text-end">Order Total</th>
+                            <th id="order-total" class="text-end">${{ cart_total|floatformat:2|intcomma }}</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="card mb-3 border-0 shadow-sm">
+                <div class="card-header fw-bolder h4">
+                    <i class="fa-solid fa-cart-plus me-1"></i>
+                    Add to Cart
+                </div>
+                <div class="card-body">
+                    <form id="order-detail-form" method="post" action="{% url 'djtraders:order_add_line' customer.customer_id %}">
+                        {% csrf_token %}
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-2">
+                                <label for="id_category_filter" class="form-label">Category</label>
+                                <select id="id_category_filter" class="form-select">
+                                    <option value="">All Categories</option>
+                                    {% for category in categories %}
+                                        <option value="{{ category.category_id }}">{{ category.category_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="id_product" class="form-label">Product</label>
+                                {{ detail_form.product }}
+                            </div>
+                            <div class="col-md-2">
+                                <label for="id_quantity" class="form-label">Quantity</label>
+                                {{ detail_form.quantity }}
+                            </div>
+                            <div class="col-md-2">
+                                <label for="id_discount_percent" class="form-label">Discount %</label>
+                                {{ detail_form.discount_percent }}
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn dt-btn-primary-customer w3-hover-shadow w-100" title="Add to Cart">
+                                    <i class="fa-solid fa-cart-plus me-1"></i>Add
+                                </button>
+                            </div>
+                        </div>
+                        <div id="order-detail-form-error" class="alert alert-danger mt-3 d-none"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-3 border-0 shadow-sm">
+                <div class="card-header fw-bolder h4">
+                    <i class="fa-solid fa-truck me-1"></i>
+                    Place Order
+                </div>
+                <div class="card-body">
+                    {% if commit_form.non_field_errors %}
+                        <div class="alert alert-danger">{{ commit_form.non_field_errors }}</div>
+                    {% endif %}
+                    {% if stock_errors %}
+                        <div class="alert alert-danger">
+                            <strong>Not enough stock:</strong>
+                            <ul class="mb-0">
+                                {% for error in stock_errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <form method="post" action="{% url 'djtraders:order_commit' customer.customer_id %}">
+                        {% csrf_token %}
+
+                        <h6 class="text-uppercase text-muted small fw-bold mb-2">Ship To</h6>
+                        <div class="mb-3">
+                            <label for="{{ ship_to_form.ship_name.id_for_label }}" class="form-label">{{ ship_to_form.ship_name.label }}</label>
+                            {{ ship_to_form.ship_name }}
+                            {% if ship_to_form.ship_name.errors %}
+                                <div class="text-danger small">{{ ship_to_form.ship_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ ship_to_form.ship_address.id_for_label }}" class="form-label">{{ ship_to_form.ship_address.label }}</label>
+                            {{ ship_to_form.ship_address }}
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label for="{{ ship_to_form.ship_city.id_for_label }}" class="form-label">{{ ship_to_form.ship_city.label }}</label>
+                                {{ ship_to_form.ship_city }}
+                            </div>
+                            <div class="col-6">
+                                <label for="{{ ship_to_form.ship_region.id_for_label }}" class="form-label">{{ ship_to_form.ship_region.label }}</label>
+                                {{ ship_to_form.ship_region }}
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label for="{{ ship_to_form.ship_postal_code.id_for_label }}" class="form-label">{{ ship_to_form.ship_postal_code.label }}</label>
+                                {{ ship_to_form.ship_postal_code }}
+                            </div>
+                            <div class="col-6">
+                                <label for="{{ ship_to_form.ship_country.id_for_label }}" class="form-label">{{ ship_to_form.ship_country.label }}</label>
+                                {{ ship_to_form.ship_country }}
+                                {% if ship_to_form.ship_country.errors %}
+                                    <div class="text-danger small">{{ ship_to_form.ship_country.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <h6 class="text-uppercase text-muted small fw-bold mb-2">Order Details</h6>
+                        <div class="mb-3">
+                            <label for="{{ commit_form.employee.id_for_label }}" class="form-label">Employee</label>
+                            {{ commit_form.employee }}
+                            {% if commit_form.employee.errors %}
+                                <div class="text-danger small">{{ commit_form.employee.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ commit_form.required_date.id_for_label }}" class="form-label">Required Date</label>
+                            {{ commit_form.required_date }}
+                            {% if commit_form.required_date.errors %}
+                                <div class="text-danger small">{{ commit_form.required_date.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ commit_form.shipped_date.id_for_label }}" class="form-label">Ship-By Date</label>
+                            {{ commit_form.shipped_date }}
+                            {% if commit_form.shipped_date.errors %}
+                                <div class="text-danger small">{{ commit_form.shipped_date.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <button type="submit" class="btn dt-btn-primary-customer w3-hover-shadow w-100" title="Place this order">
+                            <i class="fa-solid fa-check me-1"></i>Commit Order
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        $(function() {
+            AddOrderLineItem('#order-detail-form');
+            RemoveOrderLineItem('#order-lines-table');
+            FilterProductOptions('#id_category_filter', '#id_product');
+            ShowLowStockBadge('#id_product', 5);
+        });
+    </script>
+{% endblock %}

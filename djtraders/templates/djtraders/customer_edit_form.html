@@ -1,0 +1,111 @@
+<!--
+    Form page for editing an existing customer (djtraders/views.py's
+    customer_edit_form). "customer" is the Customer instance being
+    edited; "error" is only set after a failed POST (a blank Company
+    Name), None otherwise. Each field below is a plain <input> read
+    back by name in the view -- compare to customer_edit.html, which
+    renders the same fields from a Django ModelForm (djtraders/forms.py)
+    instead.
+
+    A centered card, styled with the Customer (steel) color scheme,
+    with one <input> per Customer field (every field but customer_id
+    and inactive_date -- see views.py's customer_edit_form docstring).
+    Save's icon is colored dt-icon-success and Cancel's dt-icon-danger
+    (DjangoTraders.css), a consistent color per action independent of
+    the page's own color scheme.
+-->
+{% extends "common/base.html" %}
+
+{% block title %}Edit {{ customer.company_name }}{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card mt-4 border-0 shadow-sm">
+                <div class="card-header fw-bolder h4">
+                    <i class="fa-solid fa-pen-to-square dt-icon"></i>
+                    Edit {{ customer.company_name }} (plain form)
+                </div>
+                <div class="card-body">
+                    {% if error %}
+                        <div class="alert alert-danger py-2">{{ error }}</div>
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="company-name-input" class="form-label">Company Name</label>
+                                <input type="text" name="company_name" id="company-name-input"
+                                       class="form-control" value="{{ customer.company_name }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="contact-name-input" class="form-label">Contact Name</label>
+                                <input type="text" name="contact_name" id="contact-name-input"
+                                       class="form-control" value="{{ customer.contact_name }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="contact-title-input" class="form-label">Contact Title</label>
+                                <input type="text" name="contact_title" id="contact-title-input"
+                                       class="form-control" value="{{ customer.contact_title }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="phone-input" class="form-label">Phone</label>
+                                <input type="text" name="phone" id="phone-input"
+                                       class="form-control" value="{{ customer.phone }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="fax-input" class="form-label">Fax</label>
+                                <input type="text" name="fax" id="fax-input"
+                                       class="form-control" value="{{ customer.fax }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="password-input" class="form-label">Password</label>
+                                <input type="text" name="password" id="password-input"
+                                       class="form-control" value="{{ customer.password }}">
+                            </div>
+                            <div class="col-md-8">
+                                <label for="address-input" class="form-label">Address</label>
+                                <input type="text" name="address" id="address-input"
+                                       class="form-control" value="{{ customer.address }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="city-input" class="form-label">City</label>
+                                <input type="text" name="city" id="city-input"
+                                       class="form-control" value="{{ customer.city }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="region-input" class="form-label">Region</label>
+                                <input type="text" name="region" id="region-input"
+                                       class="form-control" value="{{ customer.region }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="postal-code-input" class="form-label">Postal Code</label>
+                                <input type="text" name="postal_code" id="postal-code-input"
+                                       class="form-control" value="{{ customer.postal_code }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="country-input" class="form-label">Country</label>
+                                <input type="text" name="country" id="country-input"
+                                       class="form-control" value="{{ customer.country }}">
+                            </div>
+                        </div>
+
+                        <div class="d-flex mt-4 justify-content-end">
+                            <button type="submit" class="btn dt-btn-primary-customer w3-hover-shadow" title="Save changes">
+                                <i class="fa-solid fa-floppy-disk me-1 dt-icon-success"></i>
+                                Save
+                            </button>
+                            <div class="dt-link-wrap btn dt-btn-secondary-customer w3-hover-shadow">
+                                <a href="{% url 'djtraders:customer_detail' customer.customer_id %}" title="Cancel and discard changes">
+                                    <i class="fa-solid fa-xmark me-1 dt-icon-danger"></i>
+                                    Cancel
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

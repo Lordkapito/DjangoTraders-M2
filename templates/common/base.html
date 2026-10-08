@@ -1,0 +1,238 @@
+<!--
+    Shared base template for the whole project's Bootstrap-styled pages.
+
+    Lives in templates/common/base.html (project-level, registered in
+    settings.py's TEMPLATES DIRS) -- not domain-specific, so it stays the
+    natural extend-from point for anything added later. Every page in the
+    project extends it, filling in only the title/content/scripts
+    blocks; everything else (CSS/JS includes, both navbars) is shared.
+
+    NOTE: this comment avoids spelling out template tags literally --
+    Django's engine parses template syntax anywhere in the file, comment
+    or not, so typing one out as plain text registers as a real tag and
+    breaks the template.
+
+    Loads Bootstrap, Font Awesome, w3.css, and DataTables' stylesheet via
+    CDN, then this project's own DjangoTraders.css last so it can
+    override any of them. w3.css classes can collide with Bootstrap's,
+    so some manual overriding is expected. jQuery and DataTables' script
+    load at the end of body, since DataTables is a jQuery plugin and both
+    need the page's own HTML already in the DOM. Bootstrap's own JS
+    bundle loads right after -- needed for the navbar's cart dropdown
+    below (data-bs-toggle="dropdown") and the toast notification at the
+    bottom of the page (ShowToast, DjangoTraders.js); nothing else in the
+    project currently needs Bootstrap's JS, only its CSS. DjangoTraders.js
+    loads last and holds the project's DataTables activation functions
+    (Make*DataTable, one per table), plus the cart/order AJAX functions
+    the cart page and navbar dropdown use. A scripts block after it lets
+    each child template call whichever function its own table/page
+    needs, since different tables need different options (e.g. disabling
+    sort on an icon column).
+
+    Both navbars use .dt-navbar (DjangoTraders.css's color tokens) with a
+    3px .dt-navbar-accent border. nav stays a semantic HTML5 landmark
+    element for both, even though Bootstrap's .navbar class would look
+    identical on a div. Link styling lives on a wrapping div
+    (.dt-link-wrap, DjangoTraders.css), not the <a> itself -- it renders
+    the <a> as "display: contents", so the div carries the classes/box
+    while the link stays clickable over everything inside it.
+    w3-hover-shadow (w3.css) adds a hover shadow to every button/
+    button-styled link.
+
+    The top navbar shows the project logo and the app's own Home link,
+    then current_employee/current_customer (djtraders/session_context.py)
+    if either is logged in, with a Log Out link, or Customer/Employee
+    Login links and a "Not logged in" label when neither is -- the only
+    login entry point on pages like product_list.html/product_detail.html
+    that are reachable without a login. A logged-in customer also sees a
+    cart dropdown (Extra Credit C) next to their name, server-rendered on
+    page load from cart_item_count/cart_lines_summary/cart_grand_total/
+    cart_customer_id (djtraders/session_context.py's cart_summary), and
+    kept live afterward -- without a page reload -- by UpdateNavCart
+    (DjangoTraders.js) whenever AddOrderLineItem/RemoveOrderLineItem
+    succeed on the cart page itself. The footer navbar is page info, not
+    navigation: a course label on the left, and the render-time
+    date/time plus the current request's path on the right.
+-->
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+      <head>
+            <meta charset="UTF-8">
+            <meta name="description"
+                  content="{% block description %}DJ Traders - Trade with confidence{% endblock %}">
+            <title>{% block title %}DJ Traders{% endblock %}</title>
+            {# Favicon -- reuses the existing logo mark; without this the browser requests /favicon.ico automatically and logs a 404. #}
+            <link rel="icon"
+                  href="{% static 'common/images/logo-mark.svg' %}"
+                  type="image/svg+xml">
+            {# Bootstrap 5.3 via CDN -- every page's base styling. #}
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+                  rel="stylesheet">
+            {# Font Awesome -- icon classes for <i> tags, e.g. fa-solid fa-user. #}
+            <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+                  rel="stylesheet">
+            {# w3.css -- a second CSS framework alongside Bootstrap (see the class-collision note above). #}
+            <link href="https://www.w3schools.com/w3css/4/w3.css" rel="stylesheet">
+            {# DataTables' stylesheet -- styles the table markup its plugin (loaded at the bottom of body) generates. #}
+            <link href="https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.min.css"
+                  rel="stylesheet">
+            {# This project's own CSS, loaded last so it can override anything above. #}
+            <link href="{% static 'common/css/DjangoTraders.css' %}" rel="stylesheet">
+      </head>
+
+      <body>
+            {# Top navbar -- shared on every page, so there's always a way back. #}
+            <nav class="navbar dt-navbar dt-navbar-accent border-bottom border-3 shadow rounded-3 mx-4 mb-2 px-4 py-2">
+                  <div class="d-flex align-items-center gap-3">
+                        <div class="dt-link-wrap w3-hover-shadow d-inline-flex align-items-center rounded-2 p-2">
+                              <a href="{% url 'home' %}" title="DjangoTraders Project Home">
+                                    <img src="{% static 'common/images/logo-small.svg' %}"
+                                         alt="DjangoTraders project logo"
+                                         height="36">
+                              </a>
+                        </div>
+
+                        <div class="dt-link-wrap btn dt-btn-nav w3-hover-shadow">
+                              <a href="{% url 'djtraders:home' %}" title="djTraders App Home">
+                                    <i class="fa-solid fa-house me-1"></i>
+                                    Home
+                              </a>
+                        </div>
+                  </div>
+                  <div class="fw-bold fs-4">DjangoTraders</div>
+                  <div class="d-flex align-items-center gap-3">
+                        {# current_customer (djtraders/session_context.py) is None when no customer's logged in. #}
+                        {% if current_customer %}
+                              {# Extra Credit C: cart dropdown, server-rendered from cart_summary (djtraders/session_context.py) and kept live by UpdateNavCart (DjangoTraders.js) after any AJAX add/remove -- no page refresh needed. #}
+                              <div class="dropdown">
+                                    <a class="btn btn-sm dt-btn-secondary-customer w3-hover-shadow dropdown-toggle position-relative"
+                                       href="#"
+                                       role="button"
+                                       id="navCartDropdown"
+                                       data-bs-toggle="dropdown"
+                                       aria-expanded="false"
+                                       title="Your cart">
+                                          <i class="fa-solid fa-cart-shopping"></i>
+                                          <span id="navCartBadge" class="dt-cart-badge dt-cart-badge-nav {% if not cart_item_count %}d-none{% endif %}">{{ cart_item_count }}</span>
+                                    </a>
+                                    <ul class="dropdown-menu dropdown-menu-end p-2" aria-labelledby="navCartDropdown" style="min-width: 260px;">
+                                          <li class="px-2 py-1 fw-bold">Your Cart</li>
+                                          <li><hr class="dropdown-divider"></li>
+                                          <div id="navCartContent">
+                                                {% if cart_lines_summary %}
+                                                      {% for line in cart_lines_summary %}
+                                                            <li class="px-2 py-1 d-flex justify-content-between small">
+                                                                  <span>{{ line.quantity }} &times; {{ line.name }}</span>
+                                                                  <span>${{ line.line_total|floatformat:2 }}</span>
+                                                            </li>
+                                                      {% endfor %}
+                                                      <li><hr class="dropdown-divider"></li>
+                                                      <li class="px-2 py-1 d-flex justify-content-between fw-bold">
+                                                            <span>Total</span>
+                                                            <span>${{ cart_grand_total|floatformat:2 }}</span>
+                                                      </li>
+                                                {% else %}
+                                                      <li class="px-2 py-1 small text-muted">Your cart is empty.</li>
+                                                {% endif %}
+                                          </div>
+                                          <li>
+                                                <a id="navCartViewLink"
+                                                   class="dropdown-item text-center btn btn-sm dt-btn-primary-customer mt-2 {% if not cart_item_count %}d-none{% endif %}"
+                                                   href="{% if cart_customer_id %}{% url 'djtraders:order_build' cart_customer_id %}{% endif %}">
+                                                      <i class="fa-solid fa-cart-shopping me-1"></i>
+                                                      View Cart
+                                                </a>
+                                          </li>
+                                    </ul>
+                              </div>
+                              <span class="dt-icon">
+                                    <i class="fa-solid fa-user me-1"></i>
+                                    {{ current_customer.company_name }}
+                              </span>
+                              <div class="dt-link-wrap btn btn-sm dt-btn-secondary-customer w3-hover-shadow">
+                                    <a href="{% url 'djtraders:customer_logout' %}" title="Log out">
+                                          <i class="fa-solid fa-right-from-bracket me-1"></i>
+                                          Log Out
+                                    </a>
+                              </div>
+                        {% endif %}
+                        {# current_employee (djtraders/session_context.py) is None when nobody's logged in. #}
+                        {% if current_employee %}
+                              <span class="dt-icon-employee">
+                                    <i class="fa-solid fa-user me-1"></i>
+                                    {{ current_employee.first_name }} {{ current_employee.last_name }}
+                              </span>
+                              <div class="dt-link-wrap btn btn-sm dt-btn-secondary-employee w3-hover-shadow">
+                                    <a href="{% url 'djtraders:logout' %}" title="Log out">
+                                          <i class="fa-solid fa-right-from-bracket me-1"></i>
+                                          Log Out
+                                    </a>
+                              </div>
+                        {% endif %}
+                        {# Shown only when nobody's logged in at all -- product_list.html/product_detail.html are reachable without a login, so this is the only login entry point on those pages. #}
+                        {% if not current_customer and not current_employee %}
+                              <span class="text-muted small fst-italic">Not logged in</span>
+                              <div class="dt-link-wrap btn btn-sm dt-btn-primary-customer w3-hover-shadow">
+                                    <a href="{% url 'djtraders:customer_login' %}"
+                                       title="Log in as a customer">
+                                          <i class="fa-solid fa-user-lock me-1"></i>
+                                          Customer Login
+                                    </a>
+                              </div>
+                              <div class="dt-link-wrap btn btn-sm dt-btn-primary-employee w3-hover-shadow">
+                                    <a href="{% url 'djtraders:login' %}" title="Log in as an employee">
+                                          <i class="fa-solid fa-user-lock me-1"></i>
+                                          Employee Login
+                                    </a>
+                              </div>
+                        {% endif %}
+                  </div>
+            </nav>
+
+            <div class="container p-4 dt-content-container">
+                  {# Each child template fills this block with its own heading, intro text, and table -- see customer_list.html. #}
+                  {% block content %}
+                  {% endblock %}
+            </div>
+
+            {# Page-info footer navbar (not navigation) -- see module comment above. #}
+            <nav class="navbar container dt-navbar dt-navbar-accent border-top border-3 shadow rounded-3 my-2 px-4 py-2 small">
+                  <div class="d-flex justify-content-between align-items-center w-100">
+                        <div class="d-flex align-items-center gap-2">
+                              <img src="{% static 'common/images/BSBE.jpeg' %}" alt="BSBE" height="28">
+                              <div>ISM 672 Fall 2026</div>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                              <div class="badge text-bg-light text-muted p-2 fst-italic">{% now "N j, Y, P" %}</div>
+                              <div>{{ request.path }}</div>
+                        </div>
+                  </div>
+            </nav>
+
+            {# Requirement 4: a single reusable Bootstrap toast -- ShowToast (DjangoTraders.js) populates and triggers it; present on every page so an add-to-cart success message works regardless of which page the customer is on when it fires. #}
+            <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
+                  <div id="dtToast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex">
+                              <div class="toast-body" id="dtToastBody"></div>
+                              <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                  </div>
+            </div>
+
+            <!-- #region [CONCEPT] jQuery + DataTables activation -->
+            {# DataTables is a jQuery plugin, so jQuery must load first. Both #}
+            {# sit at the end of body so the page's tables already exist in #}
+            {# the DOM by the time these run. #}
+            <!-- #endregion -->
+            <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+            <script src="https://cdn.datatables.net/2.3.2/js/dataTables.min.js"></script>
+            {# Bootstrap's JS bundle (includes Popper) -- needed for the navbar's cart dropdown and the toast notification above; nothing else in the project currently uses Bootstrap's JS, only its CSS. #}
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+            {# This project's own JS, loaded last so it can rely on jQuery/DataTables/Bootstrap above -- includes the DataTables activation functions themselves, plus the cart/order AJAX functions and the navbar/toast helpers. #}
+            <script src="{% static 'common/js/DjangoTraders.js' %}"></script>
+            {# A child template calls whichever DataTables activation function its own table needs here -- after DjangoTraders.js, so that function already exists, e.g. MakeCustomersDataTable(). #}
+            {% block scripts %}
+            {% endblock %}
+      </body>
+</html>

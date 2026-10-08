@@ -1,0 +1,62 @@
+<!--
+    Create/edit page for a product (views.py's product_create and
+    product_edit). new_product is set only for a brand-new, unsaved
+    product. confirm_discontinue swaps the form for an in-page prompt
+    that POSTs to product_discontinue -- no browser confirm() popup.
+-->
+{% extends "common/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if new_product %}New Product{% else %}Edit {{ product.product_name }}{% endif %}{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card mt-4 border-0 shadow-sm">
+                <div class="card-header fw-bolder h4">
+                    {% if new_product %}
+                        <i class="fa-solid fa-plus dt-icon-supplier"></i>
+                        New Product
+                    {% else %}
+                        <i class="fa-solid fa-pen-to-square dt-icon-supplier"></i>
+                        Edit {{ product.product_name }}
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if confirm_discontinue %}
+                        <div class="alert alert-warning">
+                            <h5 class="alert-heading">
+                                <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                                Discontinue {{ product.product_name }}?
+                            </h5>
+                            <p class="mb-3">
+                                This marks the product discontinued as of today. It does not
+                                delete the product or its order history.
+                            </p>
+                            <div class="d-flex">
+                                <form method="post"
+                                      action="{% url 'djtraders:product_discontinue' product.product_id %}">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                            class="btn btn-outline-danger bg-white text-black w3-hover-shadow"
+                                            title="Confirm discontinue">
+                                        <i class="fa-solid fa-ban me-1"></i>
+                                        Yes, Discontinue
+                                    </button>
+                                </form>
+                                <div class="dt-link-wrap btn dt-btn-secondary-supplier w3-hover-shadow">
+                                    <a href="{% url 'djtraders:product_detail' product.product_id %}" title="Cancel">
+                                        <i class="fa-solid fa-xmark me-1"></i>
+                                        Cancel
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        {% crispy form %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

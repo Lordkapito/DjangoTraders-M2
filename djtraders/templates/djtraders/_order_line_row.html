@@ -1,0 +1,26 @@
+<!--
+    One <tr> for order_build.html's line-items table -- rendered both
+    on the page's own initial GET (looped over order_lines) and by
+    order_add_line's AJAX response (render_to_string, djtraders/views.py),
+    so a line looks identical whether it was there on page load or just
+    added/bumped without a reload.
+
+    data-product-id on the <tr> is what DjangoTraders.js's
+    AddOrderLineItem looks for, to replace an existing row in place
+    instead of appending a duplicate one when a product already on the
+    order gets more added to it. The same attribute is read by
+    RemoveOrderLineItem to know which line to delete when its Remove
+    button (this row's own last cell) is clicked.
+-->
+<tr data-product-id="{{ line.product.product_id }}">
+    <td>{{ line.product.product_name }}</td>
+    <td class="text-end">${{ line.unit_price|floatformat:2 }}</td>
+    <td class="text-end">{{ line.quantity }}</td>
+    <td class="text-end">{% widthratio line.discount 1 100 %}%</td>
+    <td class="text-end">${{ line.line_total|floatformat:2 }}</td>
+    <td class="text-center">
+        <button type="button" class="btn btn-sm btn-outline-danger remove-line-btn" title="Remove this line">
+            <i class="fa-solid fa-trash-can"></i>
+        </button>
+    </td>
+</tr>

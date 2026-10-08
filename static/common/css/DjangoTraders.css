@@ -1,0 +1,531 @@
+/* ==========================================================================
+   DjangoTraders — Visual System
+   Shared stylesheet for customer-facing, supplier-facing, and
+   employee-facing pages. Linked from templates/common/base.html after
+   Bootstrap's CSS, so its rules win when they target the same class name.
+
+   ORGANIZATION
+   1. :root — CSS custom properties (design tokens): colors, font,
+      corner radii. Everything below reads a token instead of a literal
+      value, so a palette change happens in one place.
+   2. Component classes, grouped by section (icons, buttons, cards,
+      navbars, DataTables controls, etc.), each reading those tokens.
+
+   NAMING CONVENTION
+   Most class names start with "dt-" (short for DjangoTraders) so they
+   never collide with Bootstrap's own classes, e.g. dt-btn-primary-customer.
+   A few names have no dt- prefix on purpose -- "btn", "btn-sm", and
+   "card" -- because Bootstrap already defines classes with those exact
+   names, and this file deliberately restyles them wherever they're used
+   on the site, not just on DjangoTraders' own pages.
+
+   Many classes come in "-customer" / "-supplier" / "-employee" variants
+   (e.g. dt-btn-primary-customer, dt-icon-supplier, dt-btn-primary-employee).
+   Use whichever matches the section of the app a page belongs to -- that's
+   what keeps the three sides visually distinct.
+
+   DESIGN TOKENS (the "--dt-..." custom properties in :root)
+   These are CSS variables: each one names a value once, and every rule
+   below reads that name instead of repeating the raw value, so changing
+   a color/radius/font updates every rule that uses it.
+
+   Colors are layered in two tiers, on purpose. --dt-steel/--dt-sage/
+   --dt-slate name a color FAMILY (steel blue, sage green, slate gray).
+   --dt-customer/--dt-supplier/--dt-employee are entity aliases that each
+   point at one family, and every component rule below reads the entity
+   alias, never the family name directly. That indirection means "change
+   the Customer color" is a one-line edit to what --dt-customer points
+   to -- no other rule in this file, and no HTML template, needs to
+   change, since templates only ever reference class names like
+   dt-icon or dt-btn-primary-customer, never a variable name.
+
+   Colors use standard CSS color names (steelblue, olivedrab, goldenrod,
+   etc.) instead of hex codes like #4A7896, so they read more like
+   English in the code below.
+   ========================================================================== */
+
+/* #region Design tokens */
+:root {
+  /* Neutral grays, used for backgrounds and borders */
+  --dt-white: white;
+  --dt-surface: whitesmoke;
+  --dt-border: gainsboro;
+
+  /* Steel blue — the Customer side's color */
+  --dt-steel: steelblue;
+  --dt-steel-dark: darkslateblue;   /* a darker blue, used for text on a pale steel-blue background */
+  --dt-steel-tint: aliceblue;       /* a very pale steel blue, used for backgrounds */
+  --dt-steel-tint-border: lightsteelblue;
+
+  /* Sage — the Supplier side's color */
+  --dt-sage: olivedrab;
+  --dt-sage-dark: darkolivegreen;   /* a darker sage, used for text on a pale sage background */
+  --dt-sage-tint: beige;            /* a very pale sage, used for backgrounds */
+  --dt-sage-tint-border: yellowgreen;
+
+  /* Slate — the Employee side's color */
+  --dt-slate: slategray;
+  --dt-slate-dark: darkslategray;   /* a darker slate, used for text on a pale slate background */
+  --dt-slate-tint: whitesmoke;      /* a very pale slate, used for backgrounds */
+  --dt-slate-tint-border: lightslategray;
+
+  /* Entity aliases — every dt-*-customer/-supplier/-employee rule below
+     reads ONE of these three, never --dt-steel/-sage/-slate directly.
+     This is the one place that maps an entity to a color family: change
+     what --dt-customer points to (a different family below, or straight
+     to a literal color) and every customer-side button, icon, badge,
+     stat-card accent, and nav underline updates together, with no other
+     edits anywhere in this file and none at all in the HTML templates
+     (they only ever reference class names like dt-icon or dt-btn-
+     primary-customer, never a variable name directly). */
+  --dt-customer: var(--dt-steel);
+  --dt-customer-dark: var(--dt-steel-dark);
+  --dt-customer-tint: var(--dt-steel-tint);
+  --dt-customer-tint-border: var(--dt-steel-tint-border);
+
+  --dt-supplier: var(--dt-sage);
+  --dt-supplier-dark: var(--dt-sage-dark);
+  --dt-supplier-tint: var(--dt-sage-tint);
+  --dt-supplier-tint-border: var(--dt-sage-tint-border);
+
+  --dt-employee: var(--dt-slate);
+  --dt-employee-dark: var(--dt-slate-dark);
+  --dt-employee-tint: var(--dt-slate-tint);
+  --dt-employee-tint-border: var(--dt-slate-tint-border);
+
+  /* Gold — a shared highlight color for warning icons */
+  --dt-gold-text: darkgoldenrod;
+
+  /* Dark red — a warning color, e.g. an inactive customer badge */
+  --dt-danger: darkred;
+
+  /* Dark green — a Save/success action color */
+  --dt-success: darkgreen;
+
+  /* Font — same everywhere */
+  --dt-font: "Segoe UI", Tahoma, "Trebuchet MS", sans-serif;
+
+  /* Corner rounding, reused so every button/card/tag matches */
+  --dt-radius-sm: 6px;
+  --dt-radius-lg: 12px;
+}
+/* #endregion */
+
+/* ==========================================================================
+   Icons
+   Add to any standalone Font Awesome icon (one not already inside a
+   dt-btn-* element, which sets its own color) so every icon uses this
+   palette instead of Bootstrap's default text-primary or the browser's
+   default text color. dt-icon is the customer-side color; dt-icon-
+   supplier/-employee are the other two sides' counterparts, same
+   pairing as the dt-btn-*-customer/-supplier/-employee classes below.
+   dt-icon-warning/-danger/-success are action colors (Edit, Delete/
+   Cancel, Save) that stay the same regardless of which side the page
+   is on.
+   ========================================================================== */
+
+.dt-icon {
+  color: var(--dt-customer);
+}
+.dt-icon-supplier {
+  color: var(--dt-supplier);
+}
+.dt-icon-employee {
+  color: var(--dt-employee);
+}
+.dt-icon-warning {
+  color: var(--dt-gold-text);
+}
+.dt-icon-danger {
+  color: var(--dt-danger);
+}
+.dt-icon-success {
+  color: var(--dt-success);
+}
+
+/* ==========================================================================
+   Buttons
+   Two weights: Primary (a light tinted background, for the one main
+   action on a page) and Secondary (a plain white background with no
+   border, for supporting actions) -- both borderless, matching the
+   .btn base rule below.
+   Always add "btn" PLUS one of the specific classes below, e.g.:
+     class="btn dt-btn-primary-customer"
+   "btn" and "btn-sm" have no dt- prefix — they're Bootstrap's own class
+   names, restyled on purpose (see the note at the top of this file).
+   ========================================================================== */
+
+/* #region Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--dt-font);
+  font-size: 15px;
+  font-weight: normal;
+  padding: 12px 24px;
+  border-radius: var(--dt-radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  background: none;
+}
+
+/* Bootstrap adds a focus-ring box-shadow to .btn on click/keyboard focus
+   for accessibility -- removed project-wide, on every button. */
+.btn:focus,
+.btn:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Adjacent buttons (.btn itself, a .dt-link-wrap standing in for a link
+   styled as one -- see the .dt-link-wrap note near the top of this file
+   -- or a <form> whose only job is to hold one submit button, e.g. a
+   Yes/Deactivate action) always get a gap between them project-wide, so
+   a search bar's Search/Reset/New buttons or a confirmation alert's
+   Yes/Cancel don't need their own gap-* utility class on every page.
+   td .btn is excluded on purpose: the list pages' row-action icons
+   (customer_list.html and friends) are meant to sit packed together in
+   the Actions column. */
+.btn + .btn,
+.btn + .dt-link-wrap,
+.btn + form,
+.dt-link-wrap + .btn,
+.dt-link-wrap + .dt-link-wrap,
+.dt-link-wrap + form,
+form + .btn,
+form + .dt-link-wrap,
+form + form {
+  margin-left: 0.5rem;
+}
+td .btn + .btn,
+td .btn + .dt-link-wrap,
+td .btn + form,
+td .dt-link-wrap + .btn,
+td .dt-link-wrap + .dt-link-wrap,
+td .dt-link-wrap + form,
+td form + .btn,
+td form + .dt-link-wrap,
+td form + form {
+  margin-left: 0;
+}
+
+.dt-btn-primary-customer {
+  background: var(--dt-customer-tint);
+  color: var(--dt-customer-dark);
+}
+.dt-btn-primary-customer:hover { background: var(--dt-customer-tint-border); }
+
+.dt-btn-primary-supplier {
+  background: var(--dt-supplier-tint);
+  color: var(--dt-supplier-dark);
+}
+.dt-btn-primary-supplier:hover { background: var(--dt-supplier-tint-border); }
+
+.dt-btn-secondary-customer {
+  background: var(--dt-white);
+  color: var(--dt-customer);
+}
+.dt-btn-secondary-customer:hover { background: var(--dt-customer-tint); }
+
+.dt-btn-secondary-supplier {
+  background: var(--dt-white);
+  color: var(--dt-supplier);
+}
+.dt-btn-secondary-supplier:hover { background: var(--dt-supplier-tint); }
+
+.dt-btn-primary-employee {
+  background: var(--dt-employee-tint);
+  color: var(--dt-employee-dark);
+}
+.dt-btn-primary-employee:hover { background: var(--dt-employee-tint-border); }
+
+.dt-btn-secondary-employee {
+  background: var(--dt-white);
+  color: var(--dt-employee);
+}
+.dt-btn-secondary-employee:hover { background: var(--dt-employee-tint); }
+
+/* The top navbar's app-home button (base.html) -- not tied to any one
+   customer/supplier/employee side, so it reuses the customer palette
+   (the same one the navbar's own accent border already uses) rather
+   than getting a fourth palette of its own. */
+.dt-btn-nav {
+  background: var(--dt-white);
+  color: var(--dt-customer);
+}
+.dt-btn-nav:hover { background: var(--dt-customer-tint); }
+
+.btn-sm { font-size: 12px; padding: 5px 13px; border-radius: var(--dt-radius-sm); }
+
+.btn[disabled],
+.btn.is-disabled {
+  background: var(--dt-surface);
+  border-color: var(--dt-surface);
+  color: darkgray;
+  cursor: not-allowed;
+}
+/* #endregion */
+
+/* ==========================================================================
+   Cards
+   "card" has no dt- prefix — it's Bootstrap's own class name, restyled
+   on purpose (see the note at the top of this file).
+   ========================================================================== */
+
+.card {
+  background: var(--dt-white);
+  border: 1px solid var(--dt-border);
+  border-radius: var(--dt-radius-lg);
+  padding: 24px;
+  font-family: var(--dt-font);
+}
+
+/* An inactive customer's badge (customer_detail.html/product_detail.html) --
+   Bootstrap's own .badge class handles the pill shape/sizing, this just
+   sets the color. */
+.dt-status-inactive { background: var(--dt-danger); color: var(--dt-white); }
+
+/* ==========================================================================
+   Base template navbars
+   Styles templates/common/base.html's top and bottom navbars with this
+   file's own palette instead of generic Bootstrap utility classes.
+   ========================================================================== */
+
+.dt-navbar {
+  background: var(--dt-white);
+}
+
+/* Darker steelblue accent border for the top/bottom navbars -- pair
+   with Bootstrap's border-top/border-bottom + border-3 utilities (e.g.
+   class="dt-navbar dt-navbar-accent border-bottom border-3") so the
+   bars keep a plain white fill but get a steelblue line framing them,
+   matching the darker end of the palette used elsewhere (icon glyphs). */
+.dt-navbar-accent {
+  border-color: var(--dt-customer) !important;
+}
+
+/* ==========================================================================
+   Link wrapper convention: formatting on the div, not the <a>
+   Project convention -- every clickable link is written as a plain
+   <a href="..."> with no classes of its own, wrapped in a <div> that
+   carries all the visual classes instead (btn, w3-hover-shadow, etc.).
+   .dt-link-wrap is the marker class that goes on that wrapping div; it
+   makes the <a> inside
+   render as "display: contents" -- the anchor stops generating its own
+   box (so it can't add unwanted sizing/spacing/default link color) but
+   stays a real, fully clickable link over everything it wraps.
+   ========================================================================== */
+
+.dt-link-wrap {
+  text-decoration: none;
+}
+.dt-link-wrap > a {
+  display: contents;
+  color: inherit;
+  text-decoration: none;
+}
+
+/* NOTE: this only works when the <a> wraps real visible content (an
+   icon, a heading, some text) -- display: contents removes the
+   anchor's own box but the link stays clickable over whatever content
+   is rendered inside it. An EMPTY <a> (e.g. an old-style invisible
+   stretched-link overlay) has no content to generate a box from, so
+   display: contents leaves it with nothing clickable at all -- don't
+   pair .dt-link-wrap with an empty anchor. */
+
+/* WHY text-decoration is set on .dt-link-wrap too, not just the <a>:
+   a display: contents element generates no box, and Chromium has a
+   known quirk where text-decoration set on such an element doesn't
+   propagate to its child text -- Bootstrap's default underline on <a>
+   leaks through. Setting it on the box-generating parent instead
+   sidesteps the bug, since decoration properly propagates from there. */
+
+/* ==========================================================================
+   Base template content area
+   Sets base.html's main content div's minimum height, keeping the
+   value with the rest of the site's layout rules instead of inline
+   in the template.
+   ========================================================================== */
+
+.dt-content-container {
+  min-height: 750px;
+}
+
+/* A width cap for a centered block of body text (e.g. home.html's intro
+   paragraph). */
+.dt-lead-narrow {
+  max-width: 640px;
+}
+
+/* ==========================================================================
+   DataTables controls
+   This project loads DataTables' plain CSS/JS (dataTables.dataTables.*),
+   not its Bootstrap 5 integration -- so the "Show N entries" <select>
+   and the "Search:" <input> it generates never get Bootstrap's
+   .form-select/.form-control classes, and render with the browser's
+   own default control styling instead. Restyled directly by their
+   DataTables-generated wrapper classes (.dt-length, .dt-search) so
+   they at least match the project's border color instead of looking
+   unstyled.
+   ========================================================================== */
+
+.dt-length select,
+.dt-search input {
+  border: 1px solid var(--dt-border);
+  border-radius: var(--dt-radius-sm);
+  padding: 4px 8px;
+  margin-right: 6px;
+}
+/* Enhancement: visually flags a discounted cart line and a low-stock
+   product option, so both are noticeable at a glance instead of
+   requiring the viewer to read every number in the row/dropdown. */
+.dt-line-discounted {
+    background-color: #fff8e1;
+}
+
+.dt-line-discounted td {
+    font-weight: 600;
+}
+
+.dt-stock-low {
+    color: #b02a37;
+}
+/* Cart icon with an item-count badge (order_build.html's header). */
+.dt-cart-icon-wrap {
+    position: relative;
+    display: inline-block;
+    font-size: 1.1rem;
+}
+
+.dt-cart-badge {
+    position: absolute;
+    top: -8px;
+    right: -10px;
+    background-color: #dc3545;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 3px;
+}
+
+.dt-cart-count-badge {
+    background-color: var(--bs-secondary, #6c757d);
+    color: #fff;
+    font-size: 0.75rem;
+    vertical-align: middle;
+}
+/* ============================================================
+   Requirement 4 — CSS / UI-UX improvements
+   ============================================================ */
+
+/* Cart icon with an item-count badge (order_build.html's header). */
+.dt-cart-icon-wrap {
+    position: relative;
+    display: inline-block;
+    font-size: 1.1rem;
+}
+
+.dt-cart-badge {
+    position: absolute;
+    top: -8px;
+    right: -10px;
+    background-color: #dc3545;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 3px;
+}
+
+.dt-cart-count-badge {
+    background-color: var(--bs-secondary, #6c757d);
+    color: #fff;
+    font-size: 0.75rem;
+    vertical-align: middle;
+}
+
+/* Highlights a cart line that carries a discount (_order_line_row.html). */
+.dt-line-discounted {
+    background-color: #fff8e1;
+}
+
+.dt-line-discounted td {
+    font-weight: 600;
+}
+
+/* Brief highlight flash on a cart row right after it's added or updated
+   via AJAX (AddOrderLineItem, DjangoTraders.js) -- a visible "this just
+   changed" signal instead of the row silently appearing/updating with
+   no feedback. */
+@keyframes dt-row-flash {
+    0%   { background-color: #d1e7dd; }
+    100% { background-color: transparent; }
+}
+
+.dt-row-added {
+    animation: dt-row-flash 1.4s ease-out;
+}
+
+/* Low Stock badge next to the Product dropdown (order_build.html),
+   reusing data-stock (ProductSelectWidget, djtraders/forms.py) that
+   enhancement 5 already attaches to every product option. */
+.dt-stock-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.1rem 0.4rem;
+    border-radius: 0.25rem;
+    margin-left: 0.4rem;
+    display: inline-block;
+}
+
+.dt-stock-low {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+/* Responsiveness pass: keeps the Add to Cart row's stacked fields from
+   crowding together on a narrow screen -- Bootstrap's own grid already
+   stacks columns under md, this just adds breathing room between them. */
+@media (max-width: 767px) {
+    #order-detail-form .row.g-3 > div {
+        margin-bottom: 0.5rem;
+    }
+
+    #order-lines-table {
+        font-size: 0.85rem;
+    }
+}
+/* Extra Credit C: cart badge inside the navbar dropdown toggle -- same
+   look as .dt-cart-badge (order_build.html's header), repositioned
+   since the navbar button is a different shape/size. */
+.dt-cart-badge-nav {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background-color: #dc3545;
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    line-height: 1;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 2px;
+}

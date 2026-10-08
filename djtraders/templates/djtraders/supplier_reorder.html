@@ -1,0 +1,55 @@
+{% extends "common/base.html" %}
+
+{% block title %}Reorder -- {{ supplier.company_name }}{% endblock %}
+
+{% block content %}
+    <div class="navbar dt-navbar dt-navbar-accent border-bottom border-3 shadow rounded-3 my-3 px-4 py-2">
+        <h1 class="h4 mb-0">{{ supplier.company_name }} -- Reorder Requests</h1>
+        <div class="dt-link-wrap btn dt-btn-secondary-supplier w3-hover-shadow">
+            <a href="{% url 'djtraders:supplier_logout' %}"><i class="fa-solid fa-right-from-bracket me-1"></i>Log Out</a>
+        </div>
+    </div>
+
+    <table class="table table-striped table-bordered align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>Product</th>
+                <th class="text-end">In Stock</th>
+                <th class="text-end">Reorder Level</th>
+                <th class="text-end">On Order</th>
+                <th class="text-center">Status</th>
+                <th class="text-center">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in product_rows %}
+                <tr>
+                    <td>{{ row.product.product_name }}</td>
+                    <td class="text-end">{{ row.product.units_in_stock|default:"0" }}</td>
+                    <td class="text-end">{{ row.product.reorder_level|default:"0" }}</td>
+                    <td class="text-end">{{ row.product.units_on_order|default:"0" }}</td>
+                    <td class="text-center">
+                        {% if row.needs_reorder %}
+                            <span class="badge bg-danger">Reorder Needed</span>
+                        {% else %}
+                            <span class="badge bg-success">OK</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if row.needs_reorder %}
+                            <form method="post" action="{% url 'djtraders:supplier_request_reorder' row.product.product_id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm dt-btn-primary-supplier"
+                                        title="Add {{ reorder_unit_quantity }} units to the order">
+                                    Request Reorder (+{{ reorder_unit_quantity }})
+                                </button>
+                            </form>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6">No products on record for your company.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

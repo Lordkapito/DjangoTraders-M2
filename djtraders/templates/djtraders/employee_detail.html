@@ -1,0 +1,82 @@
+<!--
+    Detail page for a single employee (djtraders/views.py's employee_detail).
+    "employee" is a single Employee instance -- the page login_view sends a
+    newly logged-in employee to.
+
+    Shows the employee's own record -- Title, Reports To (their manager, via
+    the reports_to foreign key), Hire Date, Phone, and Address -- as a plain
+    table inside one card, plus two buttons into Customers and Products, the
+    two things an employee actually needs after logging in, styled with each
+    section's own color (steel/sage) so they read as separate destinations.
+    Kept lightly formatted on purpose: one small card, not the multi-card/
+    DataTables layout of customer_detail.html, since this page's job is
+    mainly those two links rather than a deep record view. The heading
+    navbar and its action buttons follow the same accent-bar convention as
+    customer_detail.html.
+-->
+{% extends "common/base.html" %}
+
+{% block title %}{{ employee.first_name }} {{ employee.last_name }}{% endblock %}
+
+{% block content %}
+    <div class="navbar dt-navbar dt-navbar-accent border-bottom border-3 shadow rounded-3 my-3 px-4 py-2">
+        <div class="d-flex align-items-center">
+            <h1 class="h4 mb-0">
+                Welcome, {{ employee.first_name }} {{ employee.last_name }}
+            </h1>
+        </div>
+
+        <div class="d-flex">
+            <div class="dt-link-wrap btn dt-btn-primary-customer w3-hover-shadow">
+                <a href="{% url 'djtraders:customer_list' %}" title="View Customers">
+                    <i class="fa-solid fa-users me-1"></i>
+                    Customers
+                </a>
+            </div>
+            <div class="dt-link-wrap btn dt-btn-primary-supplier w3-hover-shadow">
+                <a href="{% url 'djtraders:product_list' %}" title="View Products">
+                    <i class="fa-solid fa-box-open me-1"></i>
+                    Products
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card mb-3 border-0 shadow-sm">
+                <div class="card-header fw-bolder h4">Employee Info</div>
+                <table class="table mb-0">
+                    <tbody>
+                        <tr>
+                            <th scope="row">Title</th>
+                            <td>{{ employee.title|default:"—" }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Reports To</th>
+                            <td>
+                                {% if employee.reports_to %}
+                                    {{ employee.reports_to.first_name }} {{ employee.reports_to.last_name }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Hire Date</th>
+                            <td>{{ employee.hire_date|default:"—" }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Phone</th>
+                            <td>{{ employee.home_phone|default:"—" }}{% if employee.extension %} ext. {{ employee.extension }}{% endif %}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Address</th>
+                            <td>{{ employee.formatted_address|default:"—" }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% endblock %}

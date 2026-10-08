@@ -1,0 +1,151 @@
+<!--
+    Template for the product_list view (djtraders/views.py). See
+    customer_list.html for the app-namespacing/base.html explanation.
+
+    "products" is a Product queryset (djtraders/models.py), filtered by
+    the search bar above the table (product name, category, and a "show
+    all" flag that includes discontinued products) via Product.search.
+
+    Unit Price chains floatformat:2 (fixes 2 decimals) into humanize's
+    intcomma (adds thousands separators) for the project's $#,###.00
+    format, falling back to an em dash when unit_price is null.
+    Discontinued shows product.is_discontinued (a @property mapping the
+    raw 1/0 IntegerField to a bool) instead of the raw value.
+
+    New Product button, and the Edit/Discontinue icons in the Actions
+    column, only show when current_employee is set
+    (djtraders/session_context.py) -- same employee-only gate as
+    Customer's New/Edit/Delete. Edit links to product_edit (the crispy
+    ModelForm version); Discontinue links to that same page with
+    ?confirm_discontinue=1, which shows an in-page "are you sure?"
+    prompt instead of a browser confirm() dialog -- it's hidden once a
+    product is already discontinued (product.is_discontinued), since
+    there's nothing left to discontinue. The eye icon (View) is shown
+    to everyone and its own sorting is disabled, since it holds an
+    icon, not sortable data.
+
+    The table is activated via MakeProductsDataTable (DjangoTraders.js);
+    the Category dropdown submits the search on change, with no need to
+    also click Search.
+-->
+{% extends "common/base.html" %}
+{% load humanize %}
+
+{% block title %}Products{% endblock %}
+
+{% block content %}
+    <!-- Search bar -->
+    <div class="navbar dt-navbar dt-navbar-accent border-bottom border-3 shadow rounded-3 my-3 px-4 py-2">
+        <div class="d-flex align-items-center">
+            <h4>
+                <i class="fa-solid fa-magnifying-glass dt-icon-supplier"></i>
+                Find Products
+            </h4>
+        </div>
+
+        <div>
+            <form id="product-search-form" method="get" class="d-flex gap-2 align-items-center">
+                <input type="text"
+                       name="product_name"
+                       class="form-control"
+                       placeholder="Product Name"
+                       value="{{ search_product_name }}">
+                <select name="category" class="form-select" onchange="this.form.submit()">
+                    <option value="">Select Category</option>
+                    {% for category in categories %}
+                        <option value="{{ category.category_id }}"
+                                {% if category.category_id|stringformat:"s" == search_category_id %}selected{% endif %}>{{ category.category_name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-check text-nowrap">
+                    <input type="checkbox"
+                           name="show_all"
+                           id="show-all-products"
+                           class="form-check-input"
+                           {% if show_all %}checked{% endif %}>
+                    <label class="form-check-label" for="show-all-products">Show all products</label>
+                </div>
+            </form>
+        </div>
+
+        <div class="d-flex gap-2">
+            {# "form" submits product-search-form from outside it, so this button can sit with Reset instead of inside the input row. #}
+            <button type="submit"
+                    form="product-search-form"
+                    class="btn dt-btn-primary-supplier w3-hover-shadow"
+                    title="Search">
+                <i class="fa-solid fa-magnifying-glass me-1"></i> Search
+            </button>
+
+            <div class="dt-link-wrap btn dt-btn-secondary-supplier w3-hover-shadow">
+                <a href="{% url 'djtraders:product_list' %}" title="Reset search">
+                    <i class="fa-solid fa-rotate-left me-1"></i>
+                    Reset
+                </a>
+            </div>
+
+            {% if current_employee %}
+                <div class="dt-link-wrap btn dt-btn-primary-supplier w3-hover-shadow">
+                    <a href="{% url 'djtraders:product_create' %}" title="New product">
+                        <i class="fa-solid fa-plus me-1"></i>
+                        New Product
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <table class="table table-striped table-bordered table-hover align-middle"
+           id="product-table">
+        <thead class="table-secondary">
+            <tr>
+                <th class="py-2">Product Name</th>
+                <th class="py-2 text-end">Unit Price</th>
+                <th class="py-2 text-end">Units In Stock</th>
+                <th class="py-2 text-center">Discontinued</th>
+                <th class="py-2 text-center">Actions</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {# Loops over the "products" queryset from the view's context. #}
+            {% for product in products %}
+                <tr>
+                    <td><a href="{% url 'djtraders:product_detail' product.product_id %}">{{ product.product_name }}</a></td>
+                    <td class="text-end">{% if product.unit_price is not None %}${{ product.unit_price|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+                    <td class="text-end">{{ product.units_in_stock }}</td>
+                    <td class="text-center">{{ product.is_discontinued|yesno:"Yes,No" }}</td>
+                    <td class="text-center">
+                        <a href="{% url 'djtraders:product_detail' product.product_id %}"
+                           title="View product">
+                            <i class="fa-solid fa-eye dt-icon-supplier"></i>
+                        </a>
+                        {% if current_employee %}
+                            <a href="{% url 'djtraders:product_edit' product.product_id %}"
+                               title="Edit product"
+                               class="px-2">
+                                <i class="fa-solid fa-pen dt-icon-warning"></i>
+                            </a>
+                            {% if not product.is_discontinued %}
+                                <a href="{% url 'djtraders:product_edit' product.product_id %}?confirm_discontinue=1"
+                                   title="Discontinue product"
+                                   class="px-2">
+                                    <i class="fa-solid fa-ban dt-icon-danger"></i>
+                                </a>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        {# MakeProductsDataTable also disables sorting on the Actions column, since it holds an icon, not real data. #}
+        $(function() {
+            MakeProductsDataTable('#product-table');
+        });
+    </script>
+{% endblock %}

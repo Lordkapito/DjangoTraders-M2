@@ -1,0 +1,78 @@
+<!--
+    Project-level home page. Lives at the top-level templates/ folder
+    since it belongs to the project as a whole, not to djtraders
+    specifically. Extends common/base.html for the shared skeleton, and
+    fills in only the title and content blocks.
+
+    Normally shows a centered welcome heading plus the project's large
+    SVG logo, both wrapped in one link to the djtraders app's own home
+    page -- the navbars already cover navigation, so this page's content
+    only needs one big way in.
+
+    When an employee or customer is still logged in, confirm_logout (set
+    by views.py's home()) replaces that welcome content with an in-page
+    Bootstrap alert asking whether to start a new session, instead of a
+    browser confirm()/alert() dialog (see customer_edit.html's own
+    confirm_delete alert for the same convention). Only a real POST, via
+    the alert's own Yes button, clears the session; the alert itself
+    changes nothing on its own. Body text and the Cancel link's target
+    both branch on which kind of session is active, using the
+    current_employee/current_customer context processors (djtraders/
+    session_context.py, registered globally in settings.py), already
+    available here without this view needing to query for them itself.
+-->
+{% extends "common/base.html" %}
+{% load static %}
+
+{% block title %}DjangoTraders{% endblock %}
+
+{% block content %}
+    {% if confirm_logout %}
+        <div class="row justify-content-center py-5">
+            <div class="col-md-7">
+                <div class="alert alert-warning">
+                    <h4 class="alert-heading">
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i>Start a new session?
+                    </h4>
+                    <p>
+                        {% if current_employee %}
+                            This will log out {{ current_employee.first_name }} {{ current_employee.last_name }}
+                        {% elif current_customer %}
+                            This will log out {{ current_customer.company_name }}
+                        {% endif %}
+                        and start a new session -- a stand-in for closing and reopening the browser,
+                        since there's no reliable way for the app to detect that on its own. Are you sure?
+                    </p>
+                    <div class="d-flex">
+                        <form method="post">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-warning bg-white text-black w3-hover-shadow">
+                                <i class="fa-solid fa-right-from-bracket me-1"></i>Yes, Start New Session
+                            </button>
+                        </form>
+                        {% if current_employee %}
+                            <a href="{% url 'djtraders:employee_detail' current_employee.employee_id %}"
+                               class="dt-link-wrap btn dt-btn-secondary-customer w3-hover-shadow">
+                                Cancel
+                            </a>
+                        {% elif current_customer %}
+                            <a href="{% url 'djtraders:customer_detail' current_customer.customer_id %}"
+                               class="dt-link-wrap btn dt-btn-secondary-customer w3-hover-shadow">
+                                Cancel
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="text-center py-5">
+            <h1 class="display-4 mb-4">Welcome to DjangoTraders</h1>
+            <div class="dt-link-wrap d-inline-block w3-hover-shadow">
+                <a href="{% url 'djtraders:home' %}">
+                    <img src="{% static 'common/images/logo-large.svg' %}" alt="Go to the djTraders app">
+                </a>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

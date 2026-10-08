@@ -1,0 +1,133 @@
+<!--
+    Form page for editing an existing customer (djtraders/views.py's
+    customer_edit), reused for creating a brand new one when
+    new_customer is set in the context (customer_create renders this
+    same template before the row is saved, so the tab title and card
+    heading show "New Customer" instead of a blank company name in that
+    case). "form" is a CustomerEditForm instance (djtraders/forms.py)
+    bound to "customer" -- the crispy tag below renders every one of
+    its fields, including the Save/Cancel buttons, as Bootstrap 5
+    markup from the field list and layout that class declares. Compare
+    to customer_edit_form.html, which hand-writes the same fields as
+    plain <input> tags instead.
+
+    When customer_list.html's Delete icon links here with
+    ?confirm_delete=1, the card body shows an in-page "are you sure?"
+    prompt instead of the form. Its Confirm button posts to
+    customer_delete (djtraders/views.py) rather than popping a browser
+    confirm() dialog. Cancel on that prompt goes back to the customer's
+    detail page rather than reopening this edit form.
+
+    A hand-written jQuery validation call (ValidateCustomerEditForm,
+    DjangoTraders.js, wired up in the scripts block below) illustrates
+    client-side validation alongside the HTML5 pattern attributes
+    already on this same form (CustomerEditForm.__init__,
+    djtraders/forms.py); the real validation stays server-side.
+-->
+
+{% extends "common/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if new_customer %}New Customer{% else %}Edit {{ customer.company_name }}{% endif %}{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card mt-4 border-0 shadow-sm">
+                <div class="card-header fw-bolder h4">
+                    {% if new_customer %}
+                        <i class="fa-solid fa-user-plus dt-icon"></i>
+                        New Customer
+                    {% else %}
+                        <i class="fa-solid fa-pen-to-square dt-icon"></i>
+                        Edit {{ customer.company_name }} (crispy form)
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if confirm_delete %}
+                        <!-- #region [WARNING] in-page confirmation, not a browser confirm() -->
+                        <!-- This project avoids browser confirm()/alert() dialogs (CLAUDE.md) --
+                             a customer's Delete click lands here instead of popping a dialog,
+                             so the "are you sure" question is a real, styled page the same way
+                             every other page in the project is, not a native browser popup. -->
+                        <!-- #endregion -->
+                        <div class="alert alert-danger">
+                            <h5 class="alert-heading">
+                                <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                                Deactivate {{ customer.company_name }}?
+                            </h5>
+                            <p class="mb-3">
+                                This marks the customer inactive as of today -- it does not
+                                delete their record or their order history, and can be
+                                reversed later by clearing their inactive date.
+                            </p>
+                            <div class="d-flex">
+                                <form method="post"
+                                      action="{% url 'djtraders:customer_delete' customer.customer_id %}">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                            class="btn btn-outline-danger bg-white text-black w3-hover-shadow"
+                                            title="Confirm deactivation">
+                                        <i class="fa-solid fa-user-slash me-1"></i>
+                                        Yes, Deactivate
+                                    </button>
+                                </form>
+                                <div class="dt-link-wrap btn dt-btn-secondary-customer w3-hover-shadow">
+                                    <a href="{% url 'djtraders:customer_detail' customer.customer_id %}"
+                                       title="Cancel">
+                                        <i class="fa-solid fa-xmark me-1"></i>
+                                        Cancel
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% elif confirm_reactivate %}
+                        <div class="alert alert-warning">
+                            <h5 class="alert-heading">
+                                <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                                Reactivate {{ customer.company_name }}?
+                            </h5>
+                            <p class="mb-3">
+                                This clears the customer's inactive date, making them an
+                                active customer again. Their order history is unchanged.
+                            </p>
+                            <div class="d-flex">
+                                <form method="post"
+                                      action="{% url 'djtraders:customer_reactivate' customer.customer_id %}">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                            class="btn btn-outline-success bg-white text-black w3-hover-shadow"
+                                            title="Confirm reactivation">
+                                        <i class="fa-solid fa-user-check me-1"></i>
+                                        Yes, Reactivate
+                                    </button>
+                                </form>
+                                <div class="dt-link-wrap btn dt-btn-secondary-customer w3-hover-shadow">
+                                    <a href="{% url 'djtraders:customer_detail' customer.customer_id %}"
+                                       title="Cancel">
+                                        <i class="fa-solid fa-xmark me-1"></i>
+                                        Cancel
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                    {% else %}
+                        {% crispy form %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        // ValidateCustomerEditForm (DjangoTraders.js) attaches a submit
+        // listener to #customer-edit-form specifically -- the
+        // confirm_delete branch's own <form> above has no such id, so
+        // calling this unconditionally is safe on both branches of this
+        // template without a conditional guard.
+        ValidateCustomerEditForm('#customer-edit-form');
+    </script>
+{% endblock %}
